@@ -1,17 +1,15 @@
 package com.v2ray.ang.ui.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,10 +56,8 @@ import com.v2ray.ang.R
 import com.v2ray.ang.dto.LocateTarget
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.dto.entities.SubscriptionUsageInfo
-import com.v2ray.ang.ui.compose.ItemDivider
 import com.v2ray.ang.ui.compose.ReorderableGridItem
 import com.v2ray.ang.ui.compose.ReorderableListItem
-import com.v2ray.ang.ui.compose.colorConfigType
 import com.v2ray.ang.ui.compose.colorPing
 import com.v2ray.ang.ui.compose.colorPingRed
 import com.v2ray.ang.ui.compose.verticalScrollbar
@@ -109,6 +106,7 @@ fun GroupPagerPage(
             remove = onRemoveServer,
         )
     }
+
     // The box floats over the list (the list scrolls underneath it), so the list is padded by the box height.
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -200,7 +198,7 @@ private fun ServerListPage(
         ) {
             itemsIndexed(items = rows, key = { _, item -> item.guid }) { _, row ->
                 val content: @Composable () -> Unit = {
-                    ServerItemColumn(
+                    ServerListItem(
                         row = row,
                         isSelected = row.guid == selectedGuid,
                         doubleColumnDisplay = true,
@@ -251,21 +249,21 @@ private fun ServerListPage(
                             scope = this,
                             isDragging = isDragging
                         ) {
-                            ServerItemRow(
+                            ServerListItem(
                                 row = row,
                                 isSelected = row.guid == selectedGuid,
+                                doubleColumnDisplay = false,
                                 actions = actions
                             )
                         }
-                        ItemDivider()
                     }
                 } else {
-                    ServerItemRow(
+                    ServerListItem(
                         row = row,
                         isSelected = row.guid == selectedGuid,
+                        doubleColumnDisplay = false,
                         actions = actions
                     )
-                    ItemDivider()
                 }
             }
         }
@@ -304,36 +302,16 @@ private fun LocateTargetEffect(
     }
 }
 
-@Composable
-private fun ServerItemRow(
-    row: ServerRowUiModel,
-    isSelected: Boolean,
-    actions: ServerRowActions
-) {
-    ServerListItem(
-        row = row,
-        isSelected = isSelected,
-        doubleColumnDisplay = false,
-        actions = actions
-    )
-}
-
-@Composable
-private fun ServerItemColumn(
-    row: ServerRowUiModel,
-    isSelected: Boolean,
-    doubleColumnDisplay: Boolean,
-    actions: ServerRowActions
-) {
-    Column {
-        ServerListItem(
-            row = row,
-            isSelected = isSelected,
-            doubleColumnDisplay = doubleColumnDisplay,
-            actions = actions
-        )
-        ItemDivider()
-    }
+private fun splitFlag(remarks: String): Pair<String, String> {
+    if (remarks.length < 4) return "" to remarks
+    val first = remarks.codePointAt(0)
+    val firstLen = Character.charCount(first)
+    if (remarks.length <= firstLen) return "" to remarks
+    val second = remarks.codePointAt(firstLen)
+    val isFlag = first in 0x1F1E6..0x1F1FF && second in 0x1F1E6..0x1F1FF
+    if (!isFlag) return "" to remarks
+    val end = firstLen + Character.charCount(second)
+    return remarks.substring(0, end) to remarks.substring(end).trim()
 }
 
 @Composable
@@ -353,114 +331,150 @@ private fun ServerListItem(
     } else {
         null
     }
+
+    val colors = MaterialTheme.colorScheme
+    val cardShape = RoundedCornerShape(18.dp)
+    val (flag, title) = splitFlag(row.remarks)
+    val tileText = flag.ifEmpty { title.take(1).uppercase().ifEmpty { "•" } }
+    val tileSize = if (doubleColumnDisplay) 36.dp else 46.dp
+    val actionSize = if (doubleColumnDisplay) 32.dp else 34.dp
+    val pingColor = if (row.testDelayMillis < 0L) colorPingRed else colorPing
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .clip(cardShape)
+            .background(if (isSelected) colors.primaryContainer else colors.surfaceContainerHigh)
+            .then(if (isSelected) Modifier.border(1.5.dp, colors.primary, cardShape) else Modifier)
             .semantics {
                 if (selectedStateDescription != null) {
                     stateDescription = selectedStateDescription
                 }
             }
             .clickable { actions.select(row.guid) }
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier
-                .width(10.dp)
-                .fillMaxHeight()
+            modifier = Modifier
+                .size(tileSize)
+                .clip(RoundedCornerShape(12.dp))
+                .background(colors.surfaceContainerHighest),
+            contentAlignment = Alignment.Center
         ) {
-            if (isSelected) {
-                Row {
-                    Spacer(Modifier.width(6.dp))
+            Text(tileText, fontSize = if (doubleColumnDisplay) 18.sp else 24.sp)
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    lineBreak = LineBreak.Paragraph,
+                    fontWeight = FontWeight.Medium
+                ),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    row.typeDescription,
+                    modifier = Modifier.weight(1f, fill = false),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (testResult.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
                     Box(
-                        Modifier
-                            .width(4.dp)
-                            .fillMaxHeight()
-                            .padding(vertical = 10.dp)
-                            .background(MaterialTheme.colorScheme.primary)
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(pingColor.copy(alpha = 0.16f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            testResult,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = pingColor,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+
+            if (row.statistics.isNotBlank() || row.subscriptionBadge.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (row.subscriptionBadge.isNotBlank()) {
+                        Box(
+                            Modifier
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(colors.primary.copy(alpha = 0.2f)),
+                            Alignment.Center
+                        ) {
+                            Text(
+                                row.subscriptionBadge.uppercase(),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
+                    Text(
+                        row.statistics,
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
         }
 
-        Column(
-            Modifier
-                .weight(1f)
-                .padding(start = 8.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(row.remarks, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge.copy(lineBreak = LineBreak.Paragraph), maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (doubleColumnDisplay) {
-                    IconButton(onClick = { actions.more(row.guid, row.profile) }, Modifier.size(36.dp)) {
-                        Icon(
-                            painterResource(R.drawable.ic_more_vert_24dp),
-                            stringResource(R.string.acc_more),
-                            Modifier.size(24.dp)
-                        )
-                    }
-                } else {
-                    IconButton(onClick = { actions.share(row.guid, row.profile) }, Modifier.size(36.dp)) {
-                        Icon(
-                            painterResource(R.drawable.ic_share_24dp),
-                            stringResource(R.string.title_configuration_share),
-                            Modifier.size(24.dp)
-                        )
-                    }
-                    IconButton(onClick = { actions.edit(row.guid, row.profile) }, Modifier.size(36.dp)) {
-                        Icon(
-                            painterResource(R.drawable.ic_edit_24dp),
-                            stringResource(R.string.acc_edit),
-                            Modifier.size(24.dp)
-                        )
-                    }
-                    IconButton(onClick = { actions.remove(row.guid, row.remarks) }, Modifier.size(36.dp)) {
-                        Icon(
-                            painterResource(R.drawable.ic_delete_24dp),
-                            stringResource(R.string.acc_delete),
-                            Modifier.size(24.dp)
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (row.subscriptionBadge.isNotBlank()) {
-                    Box(
-                        Modifier
-                            .size(24.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)), Alignment.Center
-                    ) {
-                        Text(row.subscriptionBadge.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-                Text(
-                    row.statistics,
-                    Modifier.weight(1f),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+        if (doubleColumnDisplay) {
+            IconButton(onClick = { actions.more(row.guid, row.profile) }, Modifier.size(actionSize)) {
+                Icon(
+                    painterResource(R.drawable.ic_more_vert_24dp),
+                    stringResource(R.string.acc_more),
+                    Modifier.size(22.dp),
+                    tint = colors.onSurfaceVariant
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    row.typeDescription,
-                    modifier = Modifier.weight(1f, fill = false),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colorConfigType,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    testResult,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (row.testDelayMillis < 0L) colorPingRed else colorPing,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { actions.share(row.guid, row.profile) }, Modifier.size(actionSize)) {
+                    Icon(
+                        painterResource(R.drawable.ic_share_24dp),
+                        stringResource(R.string.title_configuration_share),
+                        Modifier.size(20.dp),
+                        tint = colors.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = { actions.edit(row.guid, row.profile) }, Modifier.size(actionSize)) {
+                    Icon(
+                        painterResource(R.drawable.ic_edit_24dp),
+                        stringResource(R.string.acc_edit),
+                        Modifier.size(20.dp),
+                        tint = colors.onSurfaceVariant
+                    )
+                }
+                IconButton(onClick = { actions.remove(row.guid, row.remarks) }, Modifier.size(actionSize)) {
+                    Icon(
+                        painterResource(R.drawable.ic_delete_24dp),
+                        stringResource(R.string.acc_delete),
+                        Modifier.size(20.dp),
+                        tint = colors.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -474,7 +488,6 @@ internal suspend fun PagerState.navigateToPageOptimized(
     val target = targetPage.coerceIn(0, pageCount - 1)
     val current = settledPage.coerceIn(0, pageCount - 1)
     if (target == current) return
-
     if (abs(target - current) == 1 && animateAdjacentPage) {
         animateScrollToPage(target)
     } else {
