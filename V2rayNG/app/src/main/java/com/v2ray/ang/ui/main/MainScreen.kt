@@ -217,7 +217,7 @@ fun MainScreen(
                             }
                         )
                     }
-
+                MainPowerSection(displayText = displayText, isRunning = isRunning, onAction = onAction)
                     HorizontalPager(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
