@@ -1,14 +1,18 @@
 package com.v2ray.ang.ui.compose
 
 import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -17,17 +21,23 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
 import com.v2ray.ang.handler.MmkvManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-// Mode 2: light with red accent
+// Mode 1: light with red accent
 private val LightColor = lightColorScheme(
     primary = Color(0xFFD92B3F),
     onPrimary = Color(0xFFFFFFFF),
@@ -83,7 +93,7 @@ private val DarkColor = darkColorScheme(
     errorContainer = Color(0xFF93000A),
     onError = Color(0xFF690005),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF140A0C),
+    background = Color.Transparent,
     onBackground = Color(0xFFFFE3E6),
     surface = Color(0xFF140A0C),
     onSurface = Color(0xFFFFE3E6),
@@ -121,7 +131,7 @@ private val HappColor = darkColorScheme(
     errorContainer = Color(0xFF93000A),
     onError = Color(0xFF690005),
     onErrorContainer = Color(0xFFFFDAD6),
-    background = Color(0xFF150B10),
+    background = Color.Transparent,
     onBackground = Color(0xFFFFE8EE),
     surface = Color(0xFF150B10),
     onSurface = Color(0xFFFFE8EE),
@@ -141,9 +151,115 @@ private val HappColor = darkColorScheme(
     surfaceContainerHighest = Color(0xFF37202C),
 )
 
+private fun neonScheme(
+    accent: Color,
+    onAccent: Color,
+    accentContainer: Color,
+    onAccentContainer: Color,
+    secondary: Color,
+    text: Color,
+    textVariant: Color,
+    outline: Color,
+    outlineVariant: Color,
+    base: Color,
+    low: Color,
+    mid: Color,
+    high: Color,
+    highest: Color,
+) = darkColorScheme(
+    primary = accent,
+    onPrimary = onAccent,
+    primaryContainer = accentContainer,
+    onPrimaryContainer = onAccentContainer,
+    secondary = secondary,
+    onSecondary = onAccent,
+    secondaryContainer = accentContainer,
+    onSecondaryContainer = onAccentContainer,
+    tertiary = secondary,
+    onTertiary = onAccent,
+    tertiaryContainer = accentContainer,
+    onTertiaryContainer = onAccentContainer,
+    error = Color(0xFFFFB4AB),
+    errorContainer = Color(0xFF93000A),
+    onError = Color(0xFF690005),
+    onErrorContainer = Color(0xFFFFDAD6),
+    background = Color.Transparent,
+    onBackground = text,
+    surface = base,
+    onSurface = text,
+    surfaceVariant = high,
+    onSurfaceVariant = textVariant,
+    outline = outline,
+    outlineVariant = outlineVariant,
+    inverseSurface = text,
+    inverseOnSurface = base,
+    inversePrimary = accentContainer,
+    scrim = Color(0xFF000000),
+    surfaceTint = accent,
+    surfaceContainerLowest = base,
+    surfaceContainerLow = low,
+    surfaceContainer = mid,
+    surfaceContainerHigh = high,
+    surfaceContainerHighest = highest,
+)
+
+// Mode 3: dark with white shimmering outline
+private val WhiteColor = neonScheme(
+    accent = Color(0xFFF5F5F7),
+    onAccent = Color(0xFF111114),
+    accentContainer = Color(0xFF2A2A30),
+    onAccentContainer = Color(0xFFFFFFFF),
+    secondary = Color(0xFFC7C7CC),
+    text = Color(0xFFF5F5F7),
+    textVariant = Color(0xFFA1A1A8),
+    outline = Color(0xFF6E6E75),
+    outlineVariant = Color(0xFF2C2C31),
+    base = Color(0xFF0B0B0D),
+    low = Color(0xFF101012),
+    mid = Color(0xFF151518),
+    high = Color(0xFF1D1D21),
+    highest = Color(0xFF26262B),
+)
+
+// Mode 4: dark neon green
+private val GreenColor = neonScheme(
+    accent = Color(0xFF2BFF88),
+    onAccent = Color(0xFF003919),
+    accentContainer = Color(0xFF0B3D26),
+    onAccentContainer = Color(0xFFC2FFDD),
+    secondary = Color(0xFF7CFFB8),
+    text = Color(0xFFE3FFEF),
+    textVariant = Color(0xFF8FC4A5),
+    outline = Color(0xFF5A8F72),
+    outlineVariant = Color(0xFF1E3A2B),
+    base = Color(0xFF06100B),
+    low = Color(0xFF0A1710),
+    mid = Color(0xFF0C1A13),
+    high = Color(0xFF12261C),
+    highest = Color(0xFF183226),
+)
+
+// Mode 5: dark neon blue
+private val BlueColor = neonScheme(
+    accent = Color(0xFF00B4FF),
+    onAccent = Color(0xFF00212E),
+    accentContainer = Color(0xFF0B3A57),
+    onAccentContainer = Color(0xFFD6F1FF),
+    secondary = Color(0xFF00E5FF),
+    text = Color(0xFFD6F1FF),
+    textVariant = Color(0xFF8FB0D0),
+    outline = Color(0xFF5F89B0),
+    outlineVariant = Color(0xFF1B3048),
+    base = Color(0xFF070C18),
+    low = Color(0xFF09111F),
+    mid = Color(0xFF0B1526),
+    high = Color(0xFF111E33),
+    highest = Color(0xFF18283F),
+)
+
 // Semantic Colors
-val colorPing = Color(0xFF009966) // Green
-val colorPingRed = Color(0xFFFF0099) // Pink Red
+val colorPing = Color(0xFF3DDC97) // Green
+val colorPingRed = Color(0xFFFF6B7A) // Red
 val colorConfigType = Color(0xFFf97910) // Orange
 val colorFabActive = Color(0xFFf97910) // Orange
 val colorFabInactiveLight = Color(0xFF9C9C9C) // Gray
@@ -201,6 +317,47 @@ fun resolveDarkTheme(): Boolean {
 val LocalDarkTheme = compositionLocalOf { false }
 
 @Composable
+private fun ShimmerFrame(content: @Composable () -> Unit) {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val angle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5000, easing = LinearEasing)
+        ),
+        label = "shimmerAngle"
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF0B0B0D))
+            .drawBehind {
+                val c = center
+                val side = maxOf(size.width, size.height) * 1.6f
+                rotate(degrees = angle, pivot = c) {
+                    drawRect(
+                        brush = Brush.sweepGradient(
+                            0f to Color(0xFF15151A),
+                            0.2f to Color(0xFFFFFFFF),
+                            0.4f to Color(0xFF15151A),
+                            0.7f to Color(0xFFB8B8C0),
+                            1f to Color(0xFF15151A),
+                            center = c
+                        ),
+                        topLeft = Offset(c.x - side / 2f, c.y - side / 2f),
+                        size = Size(side, side)
+                    )
+                }
+            }
+            .padding(2.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(Color(0xFF0B0B0D))
+    ) {
+        content()
+    }
+}
+
+@Composable
 fun AppTheme(
     darkTheme: Boolean = resolveDarkTheme(),
     content: @Composable () -> Unit
@@ -209,8 +366,21 @@ fun AppTheme(
     val colorScheme = when (mode) {
         "1" -> LightColor
         "2" -> HappColor
+        "3" -> WhiteColor
+        "4" -> GreenColor
+        "5" -> BlueColor
         else -> DarkColor
     }
+    val gradient: List<Color>? = when (mode) {
+        "1" -> null
+        "2" -> listOf(Color(0xFF150B10), Color(0xFF2E1020))
+        "3" -> listOf(Color(0xFF0B0B0D), Color(0xFF18181D))
+        "4" -> listOf(Color(0xFF06100B), Color(0xFF0A2417))
+        "5" -> listOf(Color(0xFF070C18), Color(0xFF0A1F3D))
+        else -> listOf(Color(0xFF140A0C), Color(0xFF2A0F14))
+    }
+    val showVideo = mode != "1"
+    val tintVideo = mode != "1" && mode != "3"
 
     val snackbarController = rememberAppSnackbarController()
 
@@ -233,11 +403,37 @@ fun AppTheme(
         MaterialTheme(
             colorScheme = colorScheme
         ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                AppSnackbarBridge(controller = snackbarController)
-                content()
-                AppSnackbarHost(hostState = snackbarController.hostState)
+            val accent = MaterialTheme.colorScheme.primary
+            val body: @Composable () -> Unit = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (gradient != null) Modifier.background(Brush.verticalGradient(gradient))
+                            else Modifier
+                        )
+                ) {
+                    if (showVideo) {
+                        VideoBackdrop(R.raw.bg_white)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.30f))
+                        )
+                        if (tintVideo) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(accent.copy(alpha = 0.28f))
+                            )
+                        }
+                    }
+                    AppSnackbarBridge(controller = snackbarController)
+                    content()
+                    AppSnackbarHost(hostState = snackbarController.hostState)
+                }
             }
+            if (mode == "3") ShimmerFrame(body) else body()
         }
     }
 }
