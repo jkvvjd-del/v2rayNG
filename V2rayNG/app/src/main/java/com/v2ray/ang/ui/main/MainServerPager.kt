@@ -345,8 +345,8 @@ private fun ServerListItem(
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp)
             .clip(cardShape)
-            .background(if (isSelected) colors.primaryContainer else colors.surfaceContainerHigh)
-            .then(if (isSelected) Modifier.border(1.5.dp, colors.primary, cardShape) else Modifier)
+            .background(if (isSelected) colors.primary.copy(alpha = 0.12f) else colors.onSurface.copy(alpha = 0.06f))
+            .border(if (isSelected) 1.5.dp else 0.7.dp, if (isSelected) colors.primary else colors.onSurface.copy(alpha = 0.18f), cardShape)
             .semantics {
                 if (selectedStateDescription != null) {
                     stateDescription = selectedStateDescription
