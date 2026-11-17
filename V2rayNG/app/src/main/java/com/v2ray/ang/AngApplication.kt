@@ -65,7 +65,7 @@ class AngApplication : Application() {
 
         Thread {
             try {
-                                if (MmkvManager.decodeServerList("").isEmpty()) {
+                if (MmkvManager.decodeServerList("").isEmpty()) {
                     val json = assets.open("servers.json").bufferedReader().use { it.readText() }
                     AngConfigManager.importBatchConfig(json, "", false)
                 }
